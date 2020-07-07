@@ -1,5 +1,6 @@
 library(gganimate)
 library(transformr)
+library(glue)
 
 # THE FLOW:
 # calculate returns
@@ -7,8 +8,11 @@ library(transformr)
 # calculate mean and cumulative hourly returns
 # plot mean hourly and cumulative together
 
-#
-
+# df <- returns_df
+# load(here::here("jst_returns.RData"))
+# returns_df <- bind_rows(df, returns_df) %>%
+#   arrange(datetime)
+# save(returns_df, file = here::here("returns_df.RData"))
 
 make_seasonal_data <- function(returns_df, tickers = "EURUSD", years = 2009:2020) {
   returns_df %>%
@@ -16,36 +20,57 @@ make_seasonal_data <- function(returns_df, tickers = "EURUSD", years = 2009:2020
       Ticker %in% tickers,
       year %in% years
     ) %>%
+    group_by(Ticker) %>% 
+    mutate(returns_detrended = returns - mean(returns, na.rm = TRUE)) %>% 
     group_by(Ticker, hour) %>%
-    summarise(meanreturns = mean(returns * 100)) %>%
-    mutate(cumreturns = cumsum(meanreturns)) %>% 
-    pivot_longer(cols = c(meanreturns, cumreturns), names_to = "return_type", values_to = "return")
+      summarise(
+        meanreturns = mean(returns * 100),
+        meanreturns_detrended = mean(returns_detrended * 100)) %>%
+      mutate(
+        cumreturns = cumsum(meanreturns),
+        cumreturns_detrended = cumsum(meanreturns_detrended)) %>% 
+      pivot_longer(cols = c(meanreturns, cumreturns, meanreturns_detrended, cumreturns_detrended), names_to = "return_type", values_to = "return")
   
 }
 
-seasonality_barlineplot <- function(returns_df, tickers = 'EURUSD', years = 2009:2020) {
+seasonality_barlineplot <- function(returns_df, tickers = "EURUSD", timezone = "ET", years = 2009:2020, detrend = TRUE) {
   
   seasonal_df <- returns_df %>%
     make_seasonal_data(tickers, years) 
   
+  if(detrend) 
+  {
+    r_type = "meanreturns_detrended"
+    cumr_type = "cumreturns_detrended"
+    title = glue::glue('Detrended Mean and Cumulative Returns by Hour ({timezone}) {years[1]} - {years[length(years)]}')
+    y_label = "Detrended Returns %"
+  } else {
+    r_type = "meanreturns"
+    cumr_type = "cumreturns"
+    title = glue::glue('Detrended Mean and Cumulative Returns by Hour ({timezone}) {years[1]} - {years[length(years)]}')
+    y_label = "Returns %"
+  }
+  
     ggplot() +
       geom_bar(
-        data = seasonal_df %>% filter(return_type == "meanreturns"),
+        data = seasonal_df %>% filter(return_type == r_type),
         aes(x = as.factor(hour), y = return, fill = Ticker),
         stat='identity', 
         position = position_dodge()
       ) +
       geom_line(
-        data = seasonal_df %>% filter(return_type == "cumreturns"),
+        data = seasonal_df %>% filter(return_type == cumr_type),
         aes(x = as.factor(hour), y = return, colour = Ticker, group = Ticker),
         size = 1.
       ) +
+      geom_vline(xintercept = "9", colour = "blue", size = 1., linetype = 2) +
+      geom_vline(xintercept = "16", colour = "blue", size = 1., linetype = 2) +
       labs(
-        title = paste('Mean and Cumulative Returns by Hour (ET)', years[1], '-', years[length(years)]),
-        x = "Hour (ET)",
-        y = "Returns %"
+        title = title,
+        x = glue::glue("Hour ({timezone})"),
+        y = y_label
       ) +
-      coord_cartesian(ylim = c(-0.11, 0.11)) +
+      coord_cartesian(ylim = c(-0.06, 0.06)) +
       facet_wrap(~Ticker) +
       theme(legend.position = 'none')
 }
@@ -60,19 +85,43 @@ seasonality_barlineplot <- function(returns_df, tickers = 'EURUSD', years = 2009
 # 
 # # cumulative mean return by year
 
-seasonality_facet_year_plot <- function(returns_df) {
+seasonality_facet_year_plot <- function(returns_df, tickers = "EURUSD", timezone = "ET", detrend = TRUE) {
+  
+  if(detrend) 
+  {
+    cumr_type = "cumreturns_detrended"
+    title = glue::glue("Detrended Cumulative Mean Hourly Returns in {timezone}")
+    y_label = "Detrended Returns %"
+  } else {
+    cumr_type = "cumreturns"
+    title = glue::glue("Cumulative Mean Hourly Returns in {timezone}")
+    y_label = "Returns %"
+  }
+  
   returns_df %>%
+    filter(Ticker %in% tickers) %>% 
+    group_by(Ticker, year) %>%
+    mutate(returns_detrended = returns - mean(returns, na.rm = TRUE)) %>% 
     group_by(Ticker, year, hour) %>%
-    summarise(meanreturns = mean(returns * 100)) %>%
-    mutate(cumreturns = cumsum(meanreturns)) %>%
-    ggplot(aes(x = hour, y = cumreturns, colour = Ticker)) + #, group = Ticker)) +
+    summarise(
+      meanreturns = mean(returns * 100),
+      meanreturns_detrended = mean(returns_detrended*100)
+    ) %>%
+    mutate(
+      cumreturns = cumsum(meanreturns),
+      cumreturns_detrended = cumsum(meanreturns_detrended)) %>%
+    pivot_longer(cols = c(cumreturns, cumreturns_detrended), names_to = "return_type", values_to = "return") %>% 
+    filter(return_type == cumr_type) %>%
+    ggplot(aes(x = hour, y = return, colour = Ticker)) + #, group = Ticker)) +
     geom_line() +
+    geom_vline(xintercept = 9, colour = "blue", size = 1., linetype = 2) +
+    geom_vline(xintercept = 16, colour = "blue", size = 1., linetype = 2) +
     facet_wrap(~year) +
     labs(
-      x = "Hour",
-      y = "Return",
+      x = glue::glue("Hour ({timezone})"),
+      y = y_label,
       colour = "Ticker",
-      title = "Mean Cumulative Hourly Returns",
+      title = title,
       subtitle = "Year by Asset"
     ) +
     theme(legend.position = "bottom")
@@ -80,19 +129,43 @@ seasonality_facet_year_plot <- function(returns_df) {
 
  
 # cumulative mean return by asset
-seasonality_facet_asset_plot <- function(returns_df) {
+seasonality_facet_asset_plot <- function(returns_df, tickers = "EURUSD", timezone = "ET", detrend = TRUE) {
+  
+  if(detrend) 
+  {
+    cumr_type = "cumreturns_detrended"
+    title = glue::glue("Detrended Cumulative Mean Hourly Returns in {timezone}")
+    y_label = "Detrended Returns %"
+  } else {
+    cumr_type = "cumreturns"
+    title = glue::glue("Cumulative Mean Hourly Returns in {timezone}")
+    y_label = "Returns %"
+  }
+  
   returns_df %>%
+    filter(Ticker %in% tickers) %>% 
+    group_by(Ticker, year) %>%
+    mutate(returns_detrended = returns - mean(returns, na.rm = TRUE)) %>% 
     group_by(Ticker, year, hour) %>%
-    summarise(meanreturns = mean(returns * 100)) %>%
-    mutate(cumreturns = cumsum(meanreturns)) %>%
-    ggplot(aes(x = hour, y = cumreturns, colour = as.factor(year))) + #, group = Ticker)) +
+    summarise(
+      meanreturns = mean(returns * 100),
+      meanreturns_detrended = mean(returns_detrended*100)
+    ) %>%
+    mutate(
+      cumreturns = cumsum(meanreturns),
+      cumreturns_detrended = cumsum(meanreturns_detrended)) %>%
+    pivot_longer(cols = c(cumreturns, cumreturns_detrended), names_to = "return_type", values_to = "return") %>% 
+    filter(return_type == cumr_type) %>%
+    ggplot(aes(x = hour, y = return, colour = as.factor(year))) + #, group = Ticker)) +
     geom_line() +
+    geom_vline(xintercept = 9, colour = "blue", size = 1., linetype = 2) +
+    geom_vline(xintercept = 16, colour = "blue", size = 1., linetype = 2) +
     facet_wrap(~Ticker) +
     labs(
-      x = "Hour",
-      y = "Return",
+      x = glue::glue("Hour ({timezone})"),
+      y = y_label,
       colour = "Year",
-      title = "Mean Cumulative Hourly Returns",
+      title = title,
       subtitle = "Asset by Year"
     ) +
     theme(legend.position = "bottom")

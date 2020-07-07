@@ -3,7 +3,9 @@ library(lubridate)
 library(here)
 
 # load(here::here("usd_prices_df.RData"))
-load(here::here("usd_returns_df.RData"))
+load(here::here("returns_df.RData"))
+# load(here::here("usd_returns_df.RData"))
+# load(here::here("eur_returns_cet_df.RData"))
 source(here::here("R", "utils.R"))
 
 theme_set(theme_bw())

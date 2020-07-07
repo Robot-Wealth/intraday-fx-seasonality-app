@@ -1,6 +1,6 @@
 # module for setting two date range sliders and guaranteeing end date is not before start date
 
-mod_dateslider_ui <- function(id, min, max, value, step) {
+mod_dateslider_ui <- function(id, min, max, value_start, value_end, step) {
   ns <- NS(id)
   
   tagList(
@@ -9,7 +9,7 @@ mod_dateslider_ui <- function(id, min, max, value, step) {
       "Select Start Year",
       min = min, 
       max = max, 
-      value = value, 
+      value = value_start, 
       step = step, 
       round = TRUE, 
       sep = "", 
@@ -20,7 +20,7 @@ mod_dateslider_ui <- function(id, min, max, value, step) {
       "Select End Year", 
       min = min, 
       max = max, 
-      value = value, 
+      value = value_end, 
       step = step, 
       round = TRUE, 
       sep = "", 
@@ -32,9 +32,7 @@ mod_dateslider_ui <- function(id, min, max, value, step) {
 
 mod_dateslider_server <- function(id) {
   
-  moduleServer(
-    id, 
-    function(input, output, session) {
+  moduleServer(id, function(input, output, session) {
       
       slider_vals <- reactiveValues(start_year = NULL, end_year = NULL)
       
@@ -42,8 +40,8 @@ mod_dateslider_server <- function(id) {
         if(input$startYear > input$endYear)
           updateSliderInput(session, "endYear", value = input$startYear)
         
-        slider_vals$start_year <- input$startYear
-        slider_vals$end_year <- input$endYear
+        slider_vals$startYear <- input$startYear
+        slider_vals$endYear <- input$endYear
         
       })
       
@@ -51,14 +49,25 @@ mod_dateslider_server <- function(id) {
         if(input$startYear > input$endYear)
           updateSliderInput(session, "startYear", value = input$endYear)
         
-        slider_vals$start_year <- input$startYear
-        slider_vals$end_year <- input$endYear
+        slider_vals$startYear <- input$startYear
+        slider_vals$endYear <- input$endYear
       })
       
-      
-      
       return(slider_vals)
-      
     }
   )
+}
+
+dateslider_app <- function() {
+  ui <- fluidPage(
+    mod_dateslider_ui(id = "testslider1", 1, 10, 5, 10, 1),
+    mod_dateslider_ui(id = "testslider2", 20, 30, 25, 26, 1)
+  )
+  
+  server <- function(input, output, session) {
+    mod_dateslider_server(id = "testslider1")
+    mod_dateslider_server(id = "testslider2")
+  }
+  
+  shinyApp(ui, server)
 }
