@@ -1,4 +1,7 @@
-# module for setting two date range sliders and guaranteeing end date is not before start date
+# Module for setting two date range sliders and guaranteeing end date is not before start date
+# Optionall disable date sliders on a given tabPanel
+# TODO:
+  # refactor functionality to disable sliders into sub-module
 
 mod_dateslider_ui <- function(id, min, max, value_start, value_end, step) {
   ns <- NS(id)
@@ -30,32 +33,43 @@ mod_dateslider_ui <- function(id, min, max, value_start, value_end, step) {
   )
 }
 
-mod_dateslider_server <- function(id) {
+mod_dateslider_server <- function(id, selectedPanel = NULL, disableInputsPanel = NULL) {
   
   moduleServer(id, function(input, output, session) {
-      
-      slider_vals <- reactiveValues(start_year = NULL, end_year = NULL)
-      
-      observeEvent(input$startYear, {
-        if(input$startYear > input$endYear)
-          updateSliderInput(session, "endYear", value = input$startYear)
-        
-        slider_vals$startYear <- input$startYear
-        slider_vals$endYear <- input$endYear
-        
+    
+    if(!is.null(selectedPanel)) {
+      observe({
+        if(selectedPanel() == disableInputsPanel) {
+          shinyjs::disable(id = "startYear")
+          shinyjs::disable(id = "endYear")
+        } else {
+          shinyjs::enable(id = "startYear")
+          shinyjs::enable(id = "endYear")
+        }
       })
-      
-      observeEvent(input$endYear, {
-        if(input$startYear > input$endYear)
-          updateSliderInput(session, "startYear", value = input$endYear)
-        
-        slider_vals$startYear <- input$startYear
-        slider_vals$endYear <- input$endYear
-      })
-      
-      return(slider_vals)
     }
-  )
+      
+    slider_vals <- reactiveValues(start_year = NULL, end_year = NULL)
+    
+    observeEvent(input$startYear, {
+      if(input$startYear > input$endYear)
+        updateSliderInput(session, "endYear", value = input$startYear)
+      
+      slider_vals$startYear <- input$startYear
+      slider_vals$endYear <- input$endYear
+      
+    })
+    
+    observeEvent(input$endYear, {
+      if(input$startYear > input$endYear)
+        updateSliderInput(session, "startYear", value = input$endYear)
+      
+      slider_vals$startYear <- input$startYear
+      slider_vals$endYear <- input$endYear
+    })
+    
+    return(slider_vals)
+  })
 }
 
 dateslider_app <- function() {

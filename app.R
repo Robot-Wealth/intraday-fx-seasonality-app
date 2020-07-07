@@ -3,9 +3,7 @@ library(tidyverse)
 library(shinyjs)
 
 # TODO:
-# remove rendered image code
-# modularise...but what? read up on how to modularize for sidebar/main panel - modules in modules...
-
+# consider modules for plot outputs
 
 timezone_list <- c("USD in ET" = "USD", "EUR in CET" = "EUR", "JPY in JST" = "JPY")
 timezone_map <- c("USD" = "ET", "EUR" = "CET", "JPY" = "JST")
@@ -63,40 +61,6 @@ ui <- navbarPage(
         )
     ),
     
-    # Animation showing seasonality evolving over time
-    # Pick assets? Or just have the image pre-made?
-    # Consider clicking a button to show on previous tab
-    
-    # tabPanel(
-    #     "Evolving Seasonality",
-    #     value = "evoSeasonality",
-    #     sidebarLayout(
-    #         sidebarPanel(
-    #             fluidRow(
-    #                 column(6, checkboxInput("detrendEvoCheckbox", "Detrend Returns", value = TRUE))
-    #             ),
-    #             fluidRow(
-    #                 selectizeInput(
-    #                     "timezoneSelector",
-    #                     "Select Local Currency and Time Zone",
-    #                     choices = timezone_list,
-    #                     selected = timezone_list[["USD in ET"]],
-    #                     multiple = FALSE
-    #                 )
-    #             ),
-    #             width = 3
-    #         ),
-    #         mainPanel(
-    #             fluidRow(
-    #                 column(12, plotOutput("facetYearPlot", height = "700px"))
-    #             ),
-    #             fluidRow(
-    #                 column(12, plotOutput("facetAssetPlot", height = "600px"))
-    #             )
-    #         )
-    #     )
-    # ),
-    
     tabPanel(
         "Heatmaps",
         value = "heatmaps",
@@ -126,16 +90,8 @@ server <- function(input, output, session) {
     
     # Seasonality plot reactives ========
     
-    observe({
-        if(input$seasonalityPanels == "byTimezone") {
-            shinyjs::disable(id = "assets")
-        } else {
-            shinyjs::enable(id = "assets")
-        }
-    })
-    
-    tz_assets <- mod_tz_asset_selector_server(id = "seas", timezone_list, assets_list) # reactiveValues
-    date_range <- mod_dateslider_server("barline_datesliders")  # reactiveValues
+    tz_assets <- mod_tz_asset_selector_server(id = "seas", timezone_list, assets_list, reactive(input$seasonalityPanels), "byTimezone") # reactiveValues
+    date_range <- mod_dateslider_server("barline_datesliders", reactive(input$seasonalityPanels), "byTimezone")  # reactiveValues
     
     output$seasonalityPlot <- renderPlot({
         req(date_range, tz_assets)
@@ -149,49 +105,27 @@ server <- function(input, output, session) {
     })
     
     output$facetYearPlot <- renderPlot({
-        # req(input$showFacetPlots)
+        req(tz_assets)
         
         returns_df %>% 
             seasonality_facet_year_plot(
-                tickers = assets_list[[input$timezoneSelector]], 
-                timezone = timezone_map[[input$timezoneSelector]],
+                tickers = assets_list[[tz_assets$timezone]], 
+                timezone = timezone_map[[tz_assets$timezone]],
                 detrend = input$detrendCheckbox
             )
         
     })
     
     output$facetAssetPlot <- renderPlot({
-        # req(input$showFacetPlots)
+        req(tz_assets)
         
         returns_df %>% 
             seasonality_facet_asset_plot(
-                tickers = assets_list[[input$timezoneSelector]], 
-                timezone = timezone_map[[input$timezoneSelector]],
+                tickers = assets_list[[tz_assets$timezone]], 
+                timezone = timezone_map[[tz_assets$timezone]],
                 detrend = input$detrendCheckbox
             )
-        
     })
-    
-    output$facetAssetAnim <- renderImage({
-        
-        list(
-            src = "assetByYear.gif",
-            contentType = "image/gif"
-            # width = 600
-        )
-        
-    }, deleteFile = FALSE)
-    
-    output$facetYearAnim <- renderImage({
-        
-        list(
-            src = "yearByAsset.gif",
-            contentType = "image/gif"
-            # width = 600
-        )
-        
-    }, deleteFile = FALSE)
-
 }
 
 # Run the application 

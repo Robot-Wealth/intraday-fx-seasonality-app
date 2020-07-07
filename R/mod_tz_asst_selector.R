@@ -1,8 +1,12 @@
-library(shiny)
-# tz_list: named list whose values correspond to the names (keys) in asst_list. Keys are shown to user in select input dropdown.
-# asset_list: named list of lists whose names correspond to the values in tz_list. Sublists populate select input dropdown.
+# Module for displaying timezone and local currency selector
+# Optionally disables asset selector on a given tab
+# Server returns selected assets and timezone/local currency as reactive values
+# TODO:
+  # refactor disable assets on specific panel functionality into sub-module
 
-# could pass panel id iot disable assets selector....
+
+library(shiny)
+library(shinyjs)
 
 timezone_list <- c("USD in ET" = "USD", "EUR in CET" = "EUR", "JPY in JST" = "JPY")
 timezone_map <- c("USD" = "ET", "EUR" = "CET", "JPY" = "JST")
@@ -12,6 +16,8 @@ assets_list <- list(
   "JPY" = c("AUDJPY", "CADJPY", "CHFJPY", "EURJPY", "GBPJPY", "USDJPY")
 )
 
+# tz_list: named list whose values correspond to the names (keys) in asst_list. Keys are shown to user in select input dropdown.
+# asset_list: named list of lists whose names correspond to the values in tz_list. Sublists populate select input dropdown.
 mod_tz_asset_selector_ui <- function(id, tz_list, asst_list, selected_tz) {
   ns <- NS(id)
   
@@ -35,14 +41,23 @@ mod_tz_asset_selector_ui <- function(id, tz_list, asst_list, selected_tz) {
   
 }
 
-mod_tz_asset_selector_server <- function(id, tz_list, asst_list) {
+mod_tz_asset_selector_server <- function(id, tz_list, asst_list, selectedPanel = NULL, disableInputsPanel = NULL) {
   moduleServer(id, function(input, output, session) {
+    
+    # disable assets selector on specific panel
+    if(!is.null(selectedPanel)) {
+      observe({
+        if(selectedPanel() == disableInputsPanel) {
+          shinyjs::disable(id = "assets")
+        } else {
+          shinyjs::enable(id = "assets")
+        }
+      })
+    }
     
     selected <- reactiveValues(assets = NULL, timezone = NULL)
     
     observeEvent(input$tzSelector, {
-      # message(cat(input$tzSelector))
-      
       updateSelectizeInput(
         session = session, 
         inputId = "assets", 
@@ -55,8 +70,11 @@ mod_tz_asset_selector_server <- function(id, tz_list, asst_list) {
       
     })
     
-    selected
+    observeEvent(input$assets, {
+      selected$assets <- input$assets
+    })
     
+    return(selected)
   })
 }
 
@@ -71,25 +89,6 @@ tz_asset_selector_app <- function() {
   
   shinyApp(ui, server)
 }
-
-mod_seas_tabset_ui <- function(id) {
-  tabsetPanel(
-    type = "tabs", 
-    id = "seasonalityPanels",
-    tabPanel(
-      value = "granular",
-      "Granular in Time and Asset",
-      # seasonality barline plots will go here
-    ),
-    tabPanel(
-      value = "byTimezone",
-      "By Timezone",
-      # facet plot outputs will go here
-    )
-  )
-}
-
-
 
 
 tz_asset_selector_app()
