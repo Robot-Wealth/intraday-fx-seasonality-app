@@ -33,14 +33,7 @@ ui <- navbarPage(
         # press button to plot mean cum returns by asset and by year (2 different views)
         sidebarLayout(
             sidebarPanel(
-                selectizeInput(
-                    "timezoneSelector",
-                    "Select Local Currency and Time Zone",
-                    choices = timezone_list,
-                    selected = timezone_list[["USD in ET"]],
-                    multiple = FALSE
-                ),
-                selectizeInput("assets", "Select Assets", choices = assets_list[["USD"]], selected = assets_list[["USD"]][1:3], multiple = TRUE),
+                mod_tz_asset_selector_ui("seas", timezone_list, assets_list, "USD in ET"),
                 fluidRow(
                     mod_dateslider_ui("barline_datesliders", 2009, 2020, 2009, 2013, 1L),
                 ),
@@ -133,16 +126,6 @@ server <- function(input, output, session) {
     
     # Seasonality plot reactives ========
     
-    observeEvent((input$timezoneSelector), {
-        updateSelectizeInput(
-            session, 
-            "assets", 
-            choices = assets_list[[input$timezoneSelector]], 
-            selected = assets_list[[input$timezoneSelector]][1:3]
-        )
-        
-    })
-    
     observe({
         if(input$seasonalityPanels == "byTimezone") {
             shinyjs::disable(id = "assets")
@@ -150,18 +133,16 @@ server <- function(input, output, session) {
             shinyjs::enable(id = "assets")
         }
     })
-            
     
-    date_range <- mod_dateslider_server("barline_datesliders")
-    # todo: return start and end dates as reacitves
-    # or incorporate seasonality plot in module - but is placed elsewhere in ui, prob won't work
+    tz_assets <- mod_tz_asset_selector_server(id = "seas", timezone_list, assets_list) # reactiveValues
+    date_range <- mod_dateslider_server("barline_datesliders")  # reactiveValues
     
     output$seasonalityPlot <- renderPlot({
-        req(date_range, input$assets)
+        req(date_range, tz_assets)
         seasonality_barlineplot(
             returns_df, 
-            input$assets, 
-            timezone = timezone_map[[input$timezoneSelector]], 
+            tz_assets$assets, 
+            timezone = timezone_map[[tz_assets$timezone]], 
             years = date_range$startYear:date_range$endYear, 
             detrend = input$detrendCheckbox
         )

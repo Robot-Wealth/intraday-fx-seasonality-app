@@ -1,3 +1,4 @@
+library(shiny)
 # tz_list: named list whose values correspond to the names (keys) in asst_list. Keys are shown to user in select input dropdown.
 # asset_list: named list of lists whose names correspond to the values in tz_list. Sublists populate select input dropdown.
 
@@ -16,7 +17,7 @@ mod_tz_asset_selector_ui <- function(id, tz_list, asst_list, selected_tz) {
   
   tagList(
     selectizeInput(
-      "timezoneSelector",
+      ns("tzSelector"),
       "Select Local Currency and Time Zone",
       choices = tz_list,
       selected = tz_list[[selected_tz]],
@@ -24,7 +25,7 @@ mod_tz_asset_selector_ui <- function(id, tz_list, asst_list, selected_tz) {
     ),
     
     selectizeInput(
-      "assets", 
+      ns("assets"), 
       "Select Assets", 
       choices = asst_list[[tz_list[[selected_tz]]]], 
       selected = asst_list[[tz_list[[selected_tz]]]][1:3], 
@@ -36,26 +37,27 @@ mod_tz_asset_selector_ui <- function(id, tz_list, asst_list, selected_tz) {
 
 mod_tz_asset_selector_server <- function(id, tz_list, asst_list) {
   moduleServer(id, function(input, output, session) {
-    observeEvent((input$timezoneSelector), {
+    
+    selected <- reactiveValues(assets = NULL, timezone = NULL)
+    
+    observeEvent(input$tzSelector, {
+      # message(cat(input$tzSelector))
+      
       updateSelectizeInput(
-        session, 
-        "assets", 
-        choices = asst_list[[tz_list[[input$timezoneSelector]]]], 
-        selected = asst_list[[tz_list[[input$timezoneSelector]]]][1:3]
+        session = session, 
+        inputId = "assets", 
+        choices = asst_list[[input$tzSelector]], 
+        selected = asst_list[[input$tzSelector]][1:3]
       )
+      
+      selected$assets <- input$assets
+      selected$timezone <- input$tzSelector
       
     })
     
-    # observe({
-    #   if(input$seasonalityPanels == "byTimezone") {
-    #     shinyjs::disable(id = "assets")
-    #   } else {
-    #     shinyjs::enable(id = "assets")
-    #   }
-    # })
-  }
+    selected
     
-  )
+  })
 }
 
 tz_asset_selector_app <- function() {
@@ -69,5 +71,25 @@ tz_asset_selector_app <- function() {
   
   shinyApp(ui, server)
 }
+
+mod_seas_tabset_ui <- function(id) {
+  tabsetPanel(
+    type = "tabs", 
+    id = "seasonalityPanels",
+    tabPanel(
+      value = "granular",
+      "Granular in Time and Asset",
+      # seasonality barline plots will go here
+    ),
+    tabPanel(
+      value = "byTimezone",
+      "By Timezone",
+      # facet plot outputs will go here
+    )
+  )
+}
+
+
+
 
 tz_asset_selector_app()
