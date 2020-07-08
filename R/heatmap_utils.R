@@ -12,6 +12,7 @@ local_ccy_from_tz <- function(timezone) {
   )
 }
 
+# heatmap from performance dataframe faceted by Ticker
 heatmap_plot <- function(performance_df, tickers, timezone, years = "2009-2020", detrend = FALSE, hour_offset = 0) {
   
   localccy <- local_ccy_from_tz(timezone)
@@ -38,6 +39,7 @@ heatmap_plot <- function(performance_df, tickers, timezone, years = "2009-2020",
 
 # heatmap_plot(performance_df, c("EURAUD", "EURCAD"), "CET")
 
+# heatmap from performance dataframe faceted on years
 heatmap_facet_year_plot <- function(performance_df, ticker, timezone, detrend = FALSE, hour_offset = 0, ir_range) {
   
   performance_df %>% 
@@ -56,6 +58,7 @@ heatmap_facet_year_plot <- function(performance_df, ticker, timezone, detrend = 
   
 }
 
+# compose a plot of multiple heatmap_facet_year_plots
 compose_facet_year_heatmaps <- function(performance_df, tickers, timezone, detrend = FALSE, hour_offset = 0) {
   
   localccy <- local_ccy_from_tz(timezone)
@@ -95,6 +98,7 @@ compose_facet_year_heatmaps <- function(performance_df, tickers, timezone, detre
     plot_annotation(title = title)
 }
 
+# heatmap from performance dataframe faceted on ticker
 heatmap_facet_asset_plot <- function(performance_df, year_subset, timezone, detrend = FALSE, hour_offset = 0, ir_range) {
   
   performance_df %>% 
@@ -113,6 +117,7 @@ heatmap_facet_asset_plot <- function(performance_df, year_subset, timezone, detr
   
 }
 
+# compose a plot of multiple heatmap_facet_asset_plot
 # determining ir range:
   # filter on tickers in case we want to restrict any tickers in the full dataset
   # filter on year subsets - user will select several using checkbox - need dynamic ui

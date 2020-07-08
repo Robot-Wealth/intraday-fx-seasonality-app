@@ -1,29 +1,14 @@
 library(shiny)
 library(tidyverse)
 library(shinyjs)
+library(shinycssloaders)
 
 # TODO:
 # consider modules for plot outputs
 # replace indexing lists by values of other lists with switch statements
 # make data: offset/detrended subsets for each tz
 # dynamic ui in heatmap panels needs some work - currently removing radio buttons on middle tab, would be better to disable
-
-timezone_list <- c("USD in ET" = "USD", "EUR in CET" = "EUR", "JPY in JST" = "JPY")
-timezone_map <- c("USD" = "ET", "EUR" = "CET", "JPY" = "JST")
-assets_list <- list(
-    "USD" = c("AUDUSD", "CADUSD", "CHFUSD", "EURUSD", "GBPUSD", "JPYUSD"),
-    "EUR" = c("AUDEUR", "CADEUR", "CHFEUR", "GBPEUR", "JPYEUR", "USDEUR"),
-    "JPY" = c("AUDJPY", "CADJPY", "CHFJPY", "EURJPY", "GBPJPY", "USDJPY")
-)
-hm_assets_list <- list(
-    "USD" = c("AUDUSD", "USDCAD", "USDCHF", "EURUSD", "GBPUSD", "USDJPY"),
-    "EUR" = c("EURAUD", "EURCAD", "EURCHF", "EURGBP", "EURJPY", "EURUSD"),
-    "JPY" = c("AUDJPY", "CADJPY", "CHFJPY", "EURJPY", "GBPJPY", "USDJPY")
-)
-hm_date_ranges <- c("2009-2011", "2012-2014", "2015-2017", "2018-2020", "2009-2020")
-
-# source(here::here("R", "server_shared.R"), local = TRUE)  # visible to server, all sessions
-# source(here::here("R", "mod_dateslider.R"), local = FALSE)  # visible to server, all sessions
+# pot chachign would be really useful
 
 ui <- navbarPage(
     shinyjs::useShinyjs(),
@@ -90,17 +75,18 @@ ui <- navbarPage(
                     tabPanel(
                         value = "hmGranular",
                         "Granular in Time and Asset",
-                        plotOutput("heatmapPlot", height = "600px"),
+                        plotOutput("heatmapPlot", height = "600px") %>% 
+                            withSpinner(),
                     ),
                     tabPanel(
                         value = "hmByTime",
                         "Tickers by Time Subset",
-                        fluidRow(column(12, plotOutput("hmFacetYearPlot", height = "900px")))
+                        fluidRow(column(12, plotOutput("hmFacetYearPlot", height = "900px")%>% withSpinner()))
                     ),
                     tabPanel(
                         value = "hmByAsset",
                         "Time Subset by Tickers",
-                        fluidRow(column(12, plotOutput("hmFacetAssetPlot", height = "900px")))
+                        fluidRow(column(12, plotOutput("hmFacetAssetPlot", height = "900px") %>% withSpinner()))
                     )
                 )
             )

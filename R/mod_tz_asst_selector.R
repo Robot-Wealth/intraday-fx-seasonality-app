@@ -32,12 +32,16 @@ mod_tz_asset_selector_ui <- function(id, tz_list, asst_list, selected_tz) {
   
 }
 
-mod_tz_asset_selector_server <- function(id, tz_list, asst_list, selectedPanel = NULL, disableInputsPanel = NULL, inputToDisable = "assets") {
+# selected_panel: optionally pass currently selected tabpanel
+# disable_inputs_panel: optionally pass a tabpanel in which to disable inputs
+# input_to_disable: optionally pass an input to disable when selected_panel == disable_inputs_panel
+# returns: reactive values object containing selected timezone and assets
+mod_tz_asset_selector_server <- function(id, tz_list, asst_list, selected_panel = NULL, disable_inputs_panel = NULL, input_to_disable = "assets") {
   moduleServer(id, function(input, output, session) {
     
     # disable assets selector on specific panel
-    if(!is.null(selectedPanel)) {
-      disable_inputs(selectedPanel, disableInputsPanel, inputToDisable)
+    if(!is.null(selected_panel)) {
+      disable_inputs(selected_panel, disable_inputs_panel, input_to_disable)
     }
     
     selected <- reactiveValues(assets = NULL, timezone = NULL)
@@ -45,7 +49,7 @@ mod_tz_asset_selector_server <- function(id, tz_list, asst_list, selectedPanel =
     observeEvent(input$tzSelector, {
       updateSelectizeInput(
         session = session, 
-        inputId = inputToDisable, 
+        inputId = "assets", 
         choices = asst_list[[input$tzSelector]], 
         selected = asst_list[[input$tzSelector]][1:3]
       )

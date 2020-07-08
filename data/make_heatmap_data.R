@@ -59,7 +59,7 @@ start_hours <- 7
 end_hours <- 7
 
 expected <- assets_per_tz * start_hours * end_hours * map_dbl(params, length) %>% prod()
-actual <- performance_df %>% nrow()
+actual <- performance_df %>% distinct() %>% nrow()
 
 if(expected == actual) {
   save(performance_df, file = here::here("data", "performance_df.RData"))  
