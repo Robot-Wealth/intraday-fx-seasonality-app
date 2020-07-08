@@ -4,6 +4,9 @@ library(shinyjs)
 
 # TODO:
 # consider modules for plot outputs
+# replace indexing lists by values of other lists with switch statements
+# make data: offset/detrended subsets for each tz
+# dynamic ui in heatmap panels needs some work - currently removing radio buttons on middle tab, would be better to disable
 
 timezone_list <- c("USD in ET" = "USD", "EUR in CET" = "EUR", "JPY in JST" = "JPY")
 timezone_map <- c("USD" = "ET", "EUR" = "CET", "JPY" = "JST")
@@ -12,9 +15,15 @@ assets_list <- list(
     "EUR" = c("AUDEUR", "CADEUR", "CHFEUR", "GBPEUR", "JPYEUR", "USDEUR"),
     "JPY" = c("AUDJPY", "CADJPY", "CHFJPY", "EURJPY", "GBPJPY", "USDJPY")
 )
+hm_assets_list <- list(
+    "USD" = c("AUDUSD", "USDCAD", "USDCHF", "EURUSD", "GBPUSD", "USDJPY"),
+    "EUR" = c("EURAUD", "EURCAD", "EURCHF", "EURGBP", "EURJPY", "EURUSD"),
+    "JPY" = c("AUDJPY", "CADJPY", "CHFJPY", "EURJPY", "GBPJPY", "USDJPY")
+)
+hm_date_ranges <- c("2009-2011", "2012-2014", "2015-2017", "2018-2020", "2009-2020")
 
-source(here::here("R", "server_shared.R"), local = TRUE)  # visible to server, all sessions
-source(here::here("R", "mod_dateslider.R"), local = FALSE)  # visible to server, all sessions
+# source(here::here("R", "server_shared.R"), local = TRUE)  # visible to server, all sessions
+# source(here::here("R", "mod_dateslider.R"), local = FALSE)  # visible to server, all sessions
 
 ui <- navbarPage(
     shinyjs::useShinyjs(),
@@ -23,12 +32,11 @@ ui <- navbarPage(
     id = "tab",
     selected = "seasonality",
     
+    # Seasonality bar and line plots ====
+    
     tabPanel(
         "Seasonality",
         value = "seasonality",
-        
-        # pick assets and date range - explore changing seasonality relationships
-        # press button to plot mean cum returns by asset and by year (2 different views)
         sidebarLayout(
             sidebarPanel(
                 mod_tz_asset_selector_ui("seas", timezone_list, assets_list, "USD in ET"),
@@ -61,28 +69,42 @@ ui <- navbarPage(
         )
     ),
     
+    # Heatmaps ==========================
+    
     tabPanel(
         "Heatmaps",
         value = "heatmaps",
         sidebarLayout(
             sidebarPanel(
-                # selectizeInput(
-                #     "timezoneSelectorHM",
-                #     "Select Local Currency and Time Zone",
-                #     choices = c("USD in ET" = "USD", "EUR in CET" = "EUR", "JPY in JST" = "JPY"),
-                #     selected = "USD in ET",
-                #     multiple = FALSE
-                # ),
-                
+                mod_tz_asset_selector_ui("hmAssetsTZ", timezone_list, hm_assets_list, "USD in ET"),
+                fluidRow(
+                    column(6, uiOutput("hmTimeSubsets")), # generate this element dynamically based on selected tab
+                    column(6, radioButtons("hmOffset", "Hour Offset (Minutes)", choices = c("0", "17", "33"), selected = "0"))
+                ),
+                fluidRow(
+                    column(6, checkboxInput("hmDetrendCheckbox", "Detrended Performance Data", value = TRUE)),
+                )
             ),
-            mainPanel()
-            
-        ),
-    ),
-    
-    tabPanel(
-        "Evoloving Heatmaps",
-        value = "evoHeatmaps"
+            mainPanel(
+                tabsetPanel(type = "tabs", id = "heatmapPanels",
+                    tabPanel(
+                        value = "hmGranular",
+                        "Granular in Time and Asset",
+                        plotOutput("heatmapPlot", height = "600px"),
+                    ),
+                    tabPanel(
+                        value = "hmByTime",
+                        "Tickers by Time Subset",
+                        fluidRow(column(12, plotOutput("hmFacetYearPlot", height = "900px")))
+                    ),
+                    tabPanel(
+                        value = "hmByAsset",
+                        "Time Subset by Tickers",
+                        fluidRow(column(12, plotOutput("hmFacetAssetPlot", height = "900px")))
+                    )
+                )
+            )
+        )
     )
 )
 
@@ -126,6 +148,59 @@ server <- function(input, output, session) {
                 detrend = input$detrendCheckbox
             )
     })
+    
+    # Heatmap plot reactives ============
+    
+    output$hmTimeSubsets <- renderUI({
+        if(input$heatmapPanels == "hmByAsset") {
+            checkboxGroupInput("hmDateRangesBoxes", "Date Ranges", choices = hm_date_ranges[1:4], selected = hm_date_ranges[1:4])
+        } else if(input$heatmapPanels == "hmByTime") {
+           NULL
+        } else {
+            radioButtons("hmDateRangesRadio", "Date Range", choices = hm_date_ranges, selected = "2009-2020")
+        }
+    })
+    
+    hm_tz_assets <- mod_tz_asset_selector_server(id = "hmAssetsTZ", timezone_list, hm_assets_list, NULL, NULL)  #reactive(input$heatmapPanels), "hmByTime", ) # reactiveValues
+    # disable_inputs(selectedPanel = reactive(input$heatmapPanels), disableInputsPanel = "hmByTime", input_ids = "hmDateRanges")
+    
+    output$heatmapPlot <- renderPlot({
+        req(input$hmDateRangesRadio, hm_tz_assets)
+        heatmap_plot(
+            performance_df, 
+            tickers = hm_tz_assets$assets, 
+            timezone = timezone_map[[hm_tz_assets$timezone]], 
+            years = input$hmDateRangesRadio, 
+            detrend = input$hmDetrendCheckbox,
+            hour_offset = as.numeric(input$hmOffset)
+        )
+    })
+    
+    output$hmFacetYearPlot <- renderPlot({
+        req(hm_tz_assets)
+        
+        performance_df %>% 
+            compose_facet_year_heatmaps(
+                tickers = hm_tz_assets$assets,  # hm_assets_list[[hm_tz_assets$timezone]], 
+                timezone = timezone_map[[hm_tz_assets$timezone]], 
+                detrend = input$hmDetrendCheckbox, 
+                hour_offset = input$hmOffset
+            )
+    })
+    
+    output$hmFacetAssetPlot <- renderPlot({
+        req(hm_tz_assets, input$hmDateRangesBoxes)
+
+        performance_df %>%
+            compose_facet_asset_heatmaps(
+                tickers = hm_tz_assets$assets, 
+                year_subsets = input$hmDateRangesBoxes, 
+                timezone = timezone_map[[hm_tz_assets$timezone]], 
+                detrend = input$hmDetrendCheckbox,
+                hour_offset = input$hmOffset
+            )
+    })
+    
 }
 
 # Run the application 

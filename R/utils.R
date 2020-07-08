@@ -2,18 +2,6 @@ library(gganimate)
 library(transformr)
 library(glue)
 
-# THE FLOW:
-# calculate returns
-# convert to timezone of interest
-# calculate mean and cumulative hourly returns
-# plot mean hourly and cumulative together
-
-# df <- returns_df
-# load(here::here("jst_returns.RData"))
-# returns_df <- bind_rows(df, returns_df) %>%
-#   arrange(datetime)
-# save(returns_df, file = here::here("returns_df.RData"))
-
 make_seasonal_data <- function(returns_df, tickers = "EURUSD", years = 2009:2020) {
   returns_df %>%
     filter(
@@ -184,6 +172,7 @@ seasonality_boxplot <- function(ticker = 'EURUSD', years = 2009:2019) {
     labs(title = paste(ticker, 'Returns by Hour (ET)', years[1], '-', years[length(years)]))
 }
 # seasonality_boxplot('EURUSD', 2009:2010)
+
 
 # animated Asset by Year plot
 # anim <- returns_df %>%  

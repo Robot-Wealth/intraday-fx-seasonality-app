@@ -1,20 +1,11 @@
 # Module for displaying timezone and local currency selector
 # Optionally disables asset selector on a given tab
 # Server returns selected assets and timezone/local currency as reactive values
-# TODO:
-  # refactor disable assets on specific panel functionality into sub-module
-
 
 library(shiny)
-library(shinyjs)
+library(here)
 
-timezone_list <- c("USD in ET" = "USD", "EUR in CET" = "EUR", "JPY in JST" = "JPY")
-timezone_map <- c("USD" = "ET", "EUR" = "CET", "JPY" = "JST")
-assets_list <- list(
-  "USD" = c("AUDUSD", "CADUSD", "CHFUSD", "EURUSD", "GBPUSD", "JPYUSD"),
-  "EUR" = c("AUDEUR", "CADEUR", "CHFEUR", "GBPEUR", "JPYEUR", "USDEUR"),
-  "JPY" = c("AUDJPY", "CADJPY", "CHFJPY", "EURJPY", "GBPJPY", "USDJPY")
-)
+source(here::here("R", "reactive_utils.R"))
 
 # tz_list: named list whose values correspond to the names (keys) in asst_list. Keys are shown to user in select input dropdown.
 # asset_list: named list of lists whose names correspond to the values in tz_list. Sublists populate select input dropdown.
@@ -41,18 +32,12 @@ mod_tz_asset_selector_ui <- function(id, tz_list, asst_list, selected_tz) {
   
 }
 
-mod_tz_asset_selector_server <- function(id, tz_list, asst_list, selectedPanel = NULL, disableInputsPanel = NULL) {
+mod_tz_asset_selector_server <- function(id, tz_list, asst_list, selectedPanel = NULL, disableInputsPanel = NULL, inputToDisable = "assets") {
   moduleServer(id, function(input, output, session) {
     
     # disable assets selector on specific panel
     if(!is.null(selectedPanel)) {
-      observe({
-        if(selectedPanel() == disableInputsPanel) {
-          shinyjs::disable(id = "assets")
-        } else {
-          shinyjs::enable(id = "assets")
-        }
-      })
+      disable_inputs(selectedPanel, disableInputsPanel, inputToDisable)
     }
     
     selected <- reactiveValues(assets = NULL, timezone = NULL)
@@ -60,7 +45,7 @@ mod_tz_asset_selector_server <- function(id, tz_list, asst_list, selectedPanel =
     observeEvent(input$tzSelector, {
       updateSelectizeInput(
         session = session, 
-        inputId = "assets", 
+        inputId = inputToDisable, 
         choices = asst_list[[input$tzSelector]], 
         selected = asst_list[[input$tzSelector]][1:3]
       )
@@ -91,4 +76,4 @@ tz_asset_selector_app <- function() {
 }
 
 
-tz_asset_selector_app()
+# tz_asset_selector_app()

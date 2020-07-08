@@ -1,7 +1,10 @@
 # Module for setting two date range sliders and guaranteeing end date is not before start date
-# Optionall disable date sliders on a given tabPanel
-# TODO:
-  # refactor functionality to disable sliders into sub-module
+# Optionally disable date sliders on a given tabPanel
+
+library(shiny)
+library(here)
+
+source(here::here("R", "reactive_utils.R"))
 
 mod_dateslider_ui <- function(id, min, max, value_start, value_end, step) {
   ns <- NS(id)
@@ -38,15 +41,7 @@ mod_dateslider_server <- function(id, selectedPanel = NULL, disableInputsPanel =
   moduleServer(id, function(input, output, session) {
     
     if(!is.null(selectedPanel)) {
-      observe({
-        if(selectedPanel() == disableInputsPanel) {
-          shinyjs::disable(id = "startYear")
-          shinyjs::disable(id = "endYear")
-        } else {
-          shinyjs::enable(id = "startYear")
-          shinyjs::enable(id = "endYear")
-        }
-      })
+      disable_inputs(selectedPanel, disableInputsPanel, list("startYear", "endYear"))
     }
       
     slider_vals <- reactiveValues(start_year = NULL, end_year = NULL)
@@ -72,6 +67,7 @@ mod_dateslider_server <- function(id, selectedPanel = NULL, disableInputsPanel =
   })
 }
 
+# For testing
 dateslider_app <- function() {
   ui <- fluidPage(
     mod_dateslider_ui(id = "testslider1", 1, 10, 5, 10, 1),
