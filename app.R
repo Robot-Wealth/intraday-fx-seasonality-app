@@ -9,6 +9,7 @@ library(shinycssloaders)
 # make data: offset/detrended subsets for each tz
 # dynamic ui in heatmap panels needs some work - currently removing radio buttons on middle tab, would be better to disable
 # pot chachign would be really useful
+# display IR value of heatmap on mouse hover (partially implemented)
 
 ui <- navbarPage(
     shinyjs::useShinyjs(),
@@ -68,6 +69,7 @@ ui <- navbarPage(
                 ),
                 fluidRow(
                     column(6, checkboxInput("hmDetrendCheckbox", "Detrended Performance Data", value = TRUE)),
+                    column(6, textOutput("hmIR"))
                 )
             ),
             mainPanel(
@@ -75,18 +77,30 @@ ui <- navbarPage(
                     tabPanel(
                         value = "hmGranular",
                         "Granular in Time and Asset",
-                        plotOutput("heatmapPlot", height = "600px") %>% 
+                        plotOutput(
+                            "heatmapPlot", 
+                            height = "600px",
+                            # hover = hoverOpts(id = "heatmapHover", delayType = "debounce")
+                        ) %>% 
                             withSpinner(),
                     ),
                     tabPanel(
                         value = "hmByTime",
                         "Tickers by Time Subset",
-                        fluidRow(column(12, plotOutput("hmFacetYearPlot", height = "900px")%>% withSpinner()))
+                        fluidRow(column(12, plotOutput(
+                            "hmFacetYearPlot", 
+                            height = "900px",
+                            # hover = hoverOpts(id = "facetYearHover", delayType = "debounce")
+                        ) %>% withSpinner()))
                     ),
                     tabPanel(
                         value = "hmByAsset",
                         "Time Subset by Tickers",
-                        fluidRow(column(12, plotOutput("hmFacetAssetPlot", height = "900px") %>% withSpinner()))
+                        fluidRow(column(12, plotOutput(
+                            "hmFacetAssetPlot", 
+                            height = "900px",
+                            # hover = hoverOpts(id = "facetAssetHover", delayType = "debounce")
+                        ) %>% withSpinner()))
                     )
                 )
             )
@@ -98,31 +112,50 @@ server <- function(input, output, session) {
     
     # Seasonality plot reactives ========
     
-    tz_assets <- mod_tz_asset_selector_server(id = "seas", timezone_list, assets_list, reactive(input$seasonalityPanels), "byTimezone") # reactiveValues
-    date_range <- mod_dateslider_server("barline_datesliders", reactive(input$seasonalityPanels), "byTimezone")  # reactiveValues
+    tz_assets <- mod_tz_asset_selector_server(id = "seas", timezone_list, assets_list, reactive(input$seasonalityPanels), "byTimezone") 
+    date_range <- mod_dateslider_server("barline_datesliders", reactive(input$seasonalityPanels), "byTimezone")  
     
-    output$seasonalityPlot <- renderPlot({
-        req(date_range, tz_assets)
-        seasonality_barlineplot(
-            returns_df, 
-            tz_assets$assets, 
-            timezone = timezone_map[[tz_assets$timezone]], 
-            years = date_range$startYear:date_range$endYear, 
-            detrend = input$detrendCheckbox
-        )
-    })
-    
-    output$facetYearPlot <- renderPlot({
-        req(tz_assets)
-        
-        returns_df %>% 
-            seasonality_facet_year_plot(
-                tickers = assets_list[[tz_assets$timezone]], 
-                timezone = timezone_map[[tz_assets$timezone]],
+    output$seasonalityPlot <- renderCachedPlot(
+        {
+            req(date_range, tz_assets)
+            seasonality_barlineplot(
+                returns_df, 
+                tz_assets$assets, 
+                timezone = timezone_map[[tz_assets$timezone]], 
+                years = date_range$startYear:date_range$endYear, 
                 detrend = input$detrendCheckbox
             )
-        
-    })
+        },
+        cacheKeyExpr = {
+            list(
+                tz_assets$assets,
+                tz_assets$timezone,
+                date_range$startYear,
+                date_range$endYear,
+                input$detrendCheckbox
+            )
+        }
+    )
+    
+    output$facetYearPlot <- renderCachedPlot(
+        {
+            req(tz_assets)
+            
+            returns_df %>% 
+                seasonality_facet_year_plot(
+                    tickers = assets_list[[tz_assets$timezone]], 
+                    timezone = timezone_map[[tz_assets$timezone]],
+                    detrend = input$detrendCheckbox
+                )
+        },
+        cacheKeyExpr = {
+            list(
+                tz_assets$assets,
+                tz_assets$timezone,
+                input$detrendCheckbox
+            )
+        }
+    )
     
     output$facetAssetPlot <- renderPlot({
         req(tz_assets)
@@ -147,46 +180,88 @@ server <- function(input, output, session) {
         }
     })
     
-    hm_tz_assets <- mod_tz_asset_selector_server(id = "hmAssetsTZ", timezone_list, hm_assets_list, NULL, NULL)  #reactive(input$heatmapPanels), "hmByTime", ) # reactiveValues
-    # disable_inputs(selectedPanel = reactive(input$heatmapPanels), disableInputsPanel = "hmByTime", input_ids = "hmDateRanges")
+    hm_tz_assets <- mod_tz_asset_selector_server(id = "hmAssetsTZ", timezone_list, hm_assets_list, NULL, NULL)  
     
-    output$heatmapPlot <- renderPlot({
-        req(input$hmDateRangesRadio, hm_tz_assets)
-        heatmap_plot(
-            performance_df, 
-            tickers = hm_tz_assets$assets, 
-            timezone = timezone_map[[hm_tz_assets$timezone]], 
-            years = input$hmDateRangesRadio, 
-            detrend = input$hmDetrendCheckbox,
-            hour_offset = as.numeric(input$hmOffset)
-        )
-    })
-    
-    output$hmFacetYearPlot <- renderPlot({
-        req(hm_tz_assets)
-        
-        performance_df %>% 
-            compose_facet_year_heatmaps(
-                tickers = hm_tz_assets$assets,  # hm_assets_list[[hm_tz_assets$timezone]], 
-                timezone = timezone_map[[hm_tz_assets$timezone]], 
-                detrend = input$hmDetrendCheckbox, 
-                hour_offset = input$hmOffset
-            )
-    })
-    
-    output$hmFacetAssetPlot <- renderPlot({
-        req(hm_tz_assets, input$hmDateRangesBoxes)
-
-        performance_df %>%
-            compose_facet_asset_heatmaps(
+    output$heatmapPlot <- renderCachedPlot(
+        {
+            req(input$hmDateRangesRadio, hm_tz_assets)
+            heatmap_plot(
+                performance_df, 
                 tickers = hm_tz_assets$assets, 
-                year_subsets = input$hmDateRangesBoxes, 
                 timezone = timezone_map[[hm_tz_assets$timezone]], 
+                years = input$hmDateRangesRadio, 
                 detrend = input$hmDetrendCheckbox,
-                hour_offset = input$hmOffset
+                hour_offset = as.numeric(input$hmOffset)
             )
-    })
+        },
+        cacheKeyExpr = { 
+            list(
+                input$hmDateRangesRadio, 
+                hm_tz_assets$assets,
+                hm_tz_assets$timezone,
+                input$hmDateRangesRadio, 
+                input$hmDetrendCheckbox, 
+                input$hmOffset
+            )
+        }
+    )
     
+    output$hmFacetYearPlot <- renderCachedPlot(
+        {
+            req(hm_tz_assets)
+            
+            performance_df %>% 
+                compose_facet_year_heatmaps(
+                    tickers = hm_tz_assets$assets, 
+                    timezone = timezone_map[[hm_tz_assets$timezone]], 
+                    detrend = input$hmDetrendCheckbox, 
+                    hour_offset = input$hmOffset
+                )
+        },
+        cacheKeyExpr = {
+            list(
+                hm_tz_assets$assets,
+                hm_tz_assets$timezone,
+                input$hmDetrendCheckbox,
+                input$hmOffset
+            )
+        }
+    )
+    
+    output$hmFacetAssetPlot <- renderCachedPlot(
+        {
+            req(hm_tz_assets, input$hmDateRangesBoxes)
+    
+            performance_df %>%
+                compose_facet_asset_heatmaps(
+                    tickers = hm_tz_assets$assets, 
+                    year_subsets = input$hmDateRangesBoxes, 
+                    timezone = timezone_map[[hm_tz_assets$timezone]], 
+                    detrend = input$hmDetrendCheckbox,
+                    hour_offset = input$hmOffset
+                )
+        },
+        cacheKeyExpr = {
+            list(
+                hm_tz_assets$assets,
+                hm_tz_assets$timezone,
+                input$hmDateRangesBoxes,
+                input$hmDetrendCheckbox,
+                input$hmOffset
+            )
+        }
+    )
+    
+    # hover_out <- reactive(
+    #     switch(
+    #         input$heatmapPanels,
+    #         "hmGranular" = input$heatmapHover,
+    #         "hmByTime" = input$facetYearHover,
+    #         "hmByAsset" = input$facetAssetHover
+    #     )
+    # )
+    # 
+    # output$hmIR <- renderPrint(hover_out())
 }
 
 # Run the application 

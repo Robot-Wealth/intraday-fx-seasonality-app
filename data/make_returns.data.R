@@ -26,10 +26,10 @@ df <- usd_returns %>%
   select(Ticker, datetime, hour, year, month, day, returns) %>%
   na.omit()
 
-returns_df <- bind_rows(list(returns_df, df))
 df <- returns_df
-load(here::here("data", "returns_df.RData"))
 
+load(here::here("data", "returns_df.RData"))
+returns_df <- bind_rows(list(returns_df, df))
 returns_df <- returns_df %>% arrange(datetime)
 
 save(returns_df, file = here::here("data", "returns_df.RData"))
