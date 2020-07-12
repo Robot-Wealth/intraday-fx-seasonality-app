@@ -13,7 +13,7 @@ local_ccy_from_tz <- function(timezone) {
 }
 
 # heatmap from performance dataframe faceted by Ticker
-heatmap_plot <- function(performance_df, tickers, timezone, years = "2009-2020", detrend = FALSE, hour_offset = 0, show_values) {
+heatmap_plot <- function(performance_df, tickers, timezone, years = "2009-2020", detrend = FALSE, hour_offset = 0, show_values, label_size){
   
   localccy <- local_ccy_from_tz(timezone)
   
@@ -27,7 +27,7 @@ heatmap_plot <- function(performance_df, tickers, timezone, years = "2009-2020",
     ) %>% 
     ggplot(aes(StartHour, EndHour)) + 
       geom_tile(aes(fill = IR)) +  # , colour = "white"
-      {if (show_values) geom_text(aes(label = round(IR, 1)))} +
+      {if (show_values) geom_text(aes(label = round(IR, 1)), size = label_size)} +
       scale_fill_viridis_c() +
       labs(
         title = glue::glue("{localccy} in {timezone}, {years}, Offset {hour_offset}"),
@@ -41,13 +41,13 @@ heatmap_plot <- function(performance_df, tickers, timezone, years = "2009-2020",
 # heatmap_plot(performance_df, c("EURAUD", "EURCAD"), "CET")
 
 # heatmap from performance dataframe faceted on years
-heatmap_facet_year_plot <- function(performance_df, ticker, timezone, detrend = FALSE, hour_offset = 0, ir_range, show_values) {
+heatmap_facet_year_plot <- function(performance_df, ticker, timezone, detrend = FALSE, hour_offset = 0, ir_range, show_values, label_size) {
   
   performance_df %>% 
     filter(Ticker == ticker) %>% 
     ggplot(aes(StartHour, EndHour)) + 
       geom_tile(aes(fill = IR)) +  # , colour = "white"
-    {if (show_values) geom_text(aes(label = round(IR, 1)))} +
+    {if (show_values) geom_text(aes(label = round(IR, 1)), size = label_size)} +
       # scale_fill_viridis_c() +
       scale_fill_gradientn(colors = viridis_pal()(9), limits = ir_range, na.value = "#FDE725FF") + 
       labs(
@@ -61,7 +61,7 @@ heatmap_facet_year_plot <- function(performance_df, ticker, timezone, detrend = 
 }
 
 # compose a plot of multiple heatmap_facet_year_plots
-compose_facet_year_heatmaps <- function(performance_df, tickers, timezone, detrend = FALSE, hour_offset = 0, show_values) {
+compose_facet_year_heatmaps <- function(performance_df, tickers, timezone, detrend = FALSE, hour_offset = 0, show_values, label_size) {
   
   localccy <- local_ccy_from_tz(timezone)
   
@@ -80,7 +80,7 @@ compose_facet_year_heatmaps <- function(performance_df, tickers, timezone, detre
   
   plots <- list()
   for(i in seq_along(tickers)) {
-    p <- heatmap_facet_year_plot(df, tickers[i], timezone, detrend, hour_offset, c(ir_range$min, ir_range$max), show_values)
+    p <- heatmap_facet_year_plot(df, tickers[i], timezone, detrend, hour_offset, c(ir_range$min, ir_range$max), show_values, label_size)
     
     if(i == length(tickers)) {
       p <- p + theme(legend.position = "right")
@@ -101,13 +101,13 @@ compose_facet_year_heatmaps <- function(performance_df, tickers, timezone, detre
 }
 
 # heatmap from performance dataframe faceted on ticker
-heatmap_facet_asset_plot <- function(performance_df, year_subset, timezone, detrend = FALSE, hour_offset = 0, ir_range, show_values) {
+heatmap_facet_asset_plot <- function(performance_df, year_subset, timezone, detrend = FALSE, hour_offset = 0, ir_range, show_values, label_size) {
   
   performance_df %>% 
     filter(Years == year_subset) %>% 
     ggplot(aes(StartHour, EndHour)) + 
     geom_tile(aes(fill = IR)) +  # , colour = "white"
-    {if (show_values) geom_text(aes(label = round(IR, 1)))} +
+    {if (show_values) geom_text(aes(label = round(IR, 1)), size = label_size)} +
     # scale_fill_viridis_c() +
     scale_fill_gradientn(colors = viridis_pal()(9), limits = ir_range, na.value = "#FDE725FF") + 
     labs(
@@ -125,7 +125,7 @@ heatmap_facet_asset_plot <- function(performance_df, year_subset, timezone, detr
   # filter on tickers in case we want to restrict any tickers in the full dataset
   # filter on year subsets - user will select several using checkbox - need dynamic ui
   # disable asset selector on time subset by tickers tab
-compose_facet_asset_heatmaps <- function(performance_df, tickers, year_subsets, timezone, detrend = FALSE, hour_offset = 0, show_values) {
+compose_facet_asset_heatmaps <- function(performance_df, tickers, year_subsets, timezone, detrend = FALSE, hour_offset = 0, show_values, label_size) {
   
   localccy <- local_ccy_from_tz(timezone)
   
@@ -144,7 +144,7 @@ compose_facet_asset_heatmaps <- function(performance_df, tickers, year_subsets, 
   
   plots <- list()
   for(i in seq_along(year_subsets)) {
-    p <- heatmap_facet_asset_plot(df, year_subsets[i], timezone, detrend, hour_offset, c(ir_range$min, ir_range$max), show_values)
+    p <- heatmap_facet_asset_plot(df, year_subsets[i], timezone, detrend, hour_offset, c(ir_range$min, ir_range$max), show_values, label_size)
     
     if(i == length(year_subsets)) {
       p <- p + theme(legend.position = "right")
