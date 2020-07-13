@@ -14,3 +14,4 @@ hm_assets_list <- list(
   "JPY" = c("AUDJPY", "NZDJPY", "CHFJPY", "EURJPY", "GBPJPY", "USDJPY")
 )
 hm_date_ranges <- c("2009-2011", "2012-2014", "2015-2017", "2018-2020", "2009-2020")
+vol_regime_choices <- c("Low", "Normal", "High", "Extreme")

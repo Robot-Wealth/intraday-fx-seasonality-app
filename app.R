@@ -110,6 +110,39 @@ ui <- navbarPage(
                 )
             )
         )
+    ),
+    
+    # Volatility exploration ============
+    
+    tabPanel(
+        "Volatility",
+        value = "volatility",
+        sidebarLayout(
+            sidebarPanel(
+                width = 3,
+                withTags(div(
+                    p("Observe the apparent \"seasonality of seasonality strategy returns.\" Is this a day-of-the-week seasonality effect, or can it be explained by something else?"), 
+                    hr()
+                )),
+                fluidRow(
+                    column(
+                        6, 
+                        checkboxGroupInput(
+                            "volRegimeCheckbox", 
+                            "Select Volatility Regimes", 
+                            choices = vol_regime_choices,
+                            selected = vol_regime_choices
+                        )
+                    )
+                )
+            ),
+            
+            mainPanel(
+                width = 9,
+                plotOutput("retVolSeasonalityPlot", height = "500px"),
+                plotOutput("volRegimePlot")
+            )
+        )
     )
 )
 
@@ -269,16 +302,15 @@ server <- function(input, output, session) {
         }
     )
     
-    # hover_out <- reactive(
-    #     switch(
-    #         input$heatmapPanels,
-    #         "hmGranular" = input$heatmapHover,
-    #         "hmByTime" = input$facetYearHover,
-    #         "hmByAsset" = input$facetAssetHover
-    #     )
-    # )
-    # 
-    # output$hmIR <- renderPrint(hover_out())
+    # Volatility plot reactives =========
+    
+    output$retVolSeasonalityPlot <- renderPlot({
+        compose_dow_seasonality_plot(cdata)
+    })
+    
+    output$volRegimePlot <- renderPlot({  #cache
+        dow_vol_regime_plot(cdata, regimes = input$volRegimeCheckbox)
+    })
 }
 
 # Run the application 
