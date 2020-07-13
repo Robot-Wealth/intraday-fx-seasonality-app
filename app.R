@@ -4,6 +4,7 @@ library(shinyjs)
 library(shinycssloaders)
 
 # TODO:
+# tests
 # consider modules for plot outputs
 # replace indexing lists by values of other lists with switch statements
 # make data: offset/detrended subsets for each tz
