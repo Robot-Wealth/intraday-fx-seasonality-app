@@ -70,6 +70,10 @@ ui <- navbarPage(
                 fluidRow(
                     column(6, checkboxInput("hmDetrendCheckbox", "Detrended Performance Data", value = TRUE)),
                     column(6, textOutput("hmIR"))
+                ),
+                fluidRow(
+                    column(6, checkboxInput("ShowValues", "Show Values on Heatmap", value = TRUE)),
+                    column(6, numericInput("TextSize", "Heatmap Text Size", 4, min = 0, max = 100, step = 0.5))
                 )
             ),
             mainPanel(
@@ -191,7 +195,9 @@ server <- function(input, output, session) {
                 timezone = timezone_map[[hm_tz_assets$timezone]], 
                 years = input$hmDateRangesRadio, 
                 detrend = input$hmDetrendCheckbox,
-                hour_offset = as.numeric(input$hmOffset)
+                hour_offset = as.numeric(input$hmOffset),
+                show_values = input$ShowValues,
+                label_size = input$TextSize
             )
         },
         cacheKeyExpr = { 
@@ -201,7 +207,9 @@ server <- function(input, output, session) {
                 hm_tz_assets$timezone,
                 input$hmDateRangesRadio, 
                 input$hmDetrendCheckbox, 
-                input$hmOffset
+                input$hmOffset,
+                input$ShowValues,
+                input$TextSize
             )
         }
     )
@@ -215,7 +223,9 @@ server <- function(input, output, session) {
                     tickers = hm_tz_assets$assets, 
                     timezone = timezone_map[[hm_tz_assets$timezone]], 
                     detrend = input$hmDetrendCheckbox, 
-                    hour_offset = input$hmOffset
+                    hour_offset = input$hmOffset,
+                    show_values = input$ShowValues,
+                    label_size = input$TextSize
                 )
         },
         cacheKeyExpr = {
@@ -223,7 +233,9 @@ server <- function(input, output, session) {
                 hm_tz_assets$assets,
                 hm_tz_assets$timezone,
                 input$hmDetrendCheckbox,
-                input$hmOffset
+                input$hmOffset,
+                input$ShowValues,
+                input$TextSize
             )
         }
     )
@@ -238,7 +250,9 @@ server <- function(input, output, session) {
                     year_subsets = input$hmDateRangesBoxes, 
                     timezone = timezone_map[[hm_tz_assets$timezone]], 
                     detrend = input$hmDetrendCheckbox,
-                    hour_offset = input$hmOffset
+                    hour_offset = input$hmOffset,
+                    show_values = input$ShowValues,
+                    label_size = input$TextSize
                 )
         },
         cacheKeyExpr = {
@@ -247,7 +261,9 @@ server <- function(input, output, session) {
                 hm_tz_assets$timezone,
                 input$hmDateRangesBoxes,
                 input$hmDetrendCheckbox,
-                input$hmOffset
+                input$hmOffset,
+                input$ShowValues,
+                input$TextSize
             )
         }
     )
